@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
-import "contract/ipriceoracle.sol";
+import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol"; 
 
 contract VaultSwapCore is ReentrancyGuard, Ownable, Pausable {
     
@@ -23,7 +23,7 @@ contract VaultSwapCore is ReentrancyGuard, Ownable, Pausable {
     // State variables
     IERC20 public vaultBTC;
     IERC20 public stablecoin;
-    IPriceOracle public priceOracle;
+    AggregatorV3Interface public priceFeed;
     
     uint256 public constant COLLATERAL_RATIO = 150; // 150% = 1.5x
     uint256 public constant LIQUIDATION_THRESHOLD = 120; // 120% = 1.2x
@@ -66,15 +66,21 @@ contract VaultSwapCore is ReentrancyGuard, Ownable, Pausable {
     constructor(
         address _vaultBTC,
         address _stablecoin,
-        address _priceOracle
+        address _chainlinkPriceFeed
     ) Ownable(msg.sender) {
         require(_vaultBTC != address(0), "Invalid vaultBTC");
         require(_stablecoin != address(0), "Invalid stablecoin");
-        require(_priceOracle != address(0), "Invalid oracle");
+        require(_chainlinkPriceFeed != address(0), "Invalid oracle");
         
         vaultBTC = IERC20(_vaultBTC);
         stablecoin = IERC20(_stablecoin);
-        priceOracle = IPriceOracle(_priceOracle);
+        priceFeed = AggregatorV3Interface(_chainlinkPriceFeed); 
+    }
+
+    function getLatestPrice() public view returns (uint256) {
+        (, int256 price, , ,) = priceFeed.latestRoundData();
+        require(price > 0, "Price feed returned non-positive value");
+        return uint256(price);
     }
     
     // ============================================
@@ -94,11 +100,9 @@ contract VaultSwapCore is ReentrancyGuard, Ownable, Pausable {
             "Insufficient vaultBTC balance"
         );
         
-        // Check collateral ratio
         uint256 maxBorrow = getMaxBorrowAmount(collateralAmount);
         require(borrowAmount <= maxBorrow, "Insufficient collateral");
         
-        // Check pool liquidity
         require(
             stablecoin.balanceOf(address(this)) >= borrowAmount,
             "Insufficient liquidity"
@@ -228,8 +232,8 @@ contract VaultSwapCore is ReentrancyGuard, Ownable, Pausable {
         Loan memory loan = loans[loanId];
         if (!loan.isActive) return 0;
         
-        uint256 btcPrice = priceOracle.getPrice();
-        uint256 collateralValue = (loan.collateralAmount * btcPrice) / 10**8;
+        uint256 btcPrice = getLatestPrice(); 
+        uint256 collateralValue = (loan.collateralAmount * btcPrice) / (10**uint256(priceFeed.decimals())); 
         uint256 debtWithInterest = loan.borrowedAmount + calculateInterest(loanId);
         
         if (debtWithInterest == 0) return type(uint256).max;
@@ -249,8 +253,8 @@ contract VaultSwapCore is ReentrancyGuard, Ownable, Pausable {
     }
     
     function getMaxBorrowAmount(uint256 collateralAmount) public view returns (uint256) {
-        uint256 btcPrice = priceOracle.getPrice();
-        uint256 collateralValue = (collateralAmount * btcPrice) / 10**8;
+        uint256 btcPrice = getLatestPrice();
+        uint256 collateralValue = (collateralAmount * btcPrice) / (10**uint256(priceFeed.decimals()));
         return (collateralValue * 100) / COLLATERAL_RATIO;
     }
     
