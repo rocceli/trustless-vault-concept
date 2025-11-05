@@ -19,7 +19,7 @@
 					},
 					{
 						"internalType": "address",
-						"name": "_priceOracle",
+						"name": "_chainlinkPriceFeed",
 						"type": "address"
 					}
 				],
@@ -382,6 +382,19 @@
 				"type": "function"
 			},
 			{
+				"inputs": [],
+				"name": "getLatestPrice",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
 				"inputs": [
 					{
 						"internalType": "uint256",
@@ -583,10 +596,10 @@
 			},
 			{
 				"inputs": [],
-				"name": "priceOracle",
+				"name": "priceFeed",
 				"outputs": [
 					{
-						"internalType": "contract IPriceOracle",
+						"internalType": "contract AggregatorV3Interface",
 						"name": "",
 						"type": "address"
 					}
@@ -784,6 +797,14 @@
 		"remappings": []
 	},
 	"sources": {
+		"@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol": {
+			"keccak256": "0xfe4e8bb4861bb3860ba890ab91a3b818ec66e5a8f544fb608cfcb73f433472cd",
+			"license": "MIT",
+			"urls": [
+				"bzz-raw://644cff84052e1e82b5bb502b2a46e8f142a62b0db4cd9b38200798ba8373c6f7",
+				"dweb:/ipfs/QmTa99QHrJBn3SXDizquPBUiTxVCNKQrHgaWJhuds5Sce2"
+			]
+		},
 		"@openzeppelin/contracts/access/Ownable.sol": {
 			"keccak256": "0xff6d0bb2e285473e5311d9d3caacb525ae3538a80758c10649a4d61029b017bb",
 			"license": "MIT",
@@ -824,20 +845,12 @@
 				"dweb:/ipfs/Qmax9WHBnVsZP46ZxEMNRQpLQnrdE4dK8LehML1Py8FowF"
 			]
 		},
-		"contract/ipriceoracle.sol": {
-			"keccak256": "0xadbc79139aa23ca46f387841a823dd7552de580180b6ec47f82bfc96a0ba144c",
-			"license": "MIT",
-			"urls": [
-				"bzz-raw://553ecfb0602189cd9781926bd372c8e18be65c4d531407b2ae95446689dfa0b3",
-				"dweb:/ipfs/Qmf8bNAZi3tk57dLVYA6uwZDUePgrUfFnUErUJ2hnbpPJH"
-			]
-		},
 		"contract/vaultswapcore.sol": {
-			"keccak256": "0x8a67789dc05706bbed70c5f2f49281cce236c0355a2b1ef6052f800b057ba8bf",
+			"keccak256": "0x6066b24fdf755d04f5db0beeedfc8923e5bd000f23e519b9b48aa038db72fefa",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://0ead99f8ccc2c783aedcc3e93d340da9ef6c2d9fafba032c0b41a1dd45d4a386",
-				"dweb:/ipfs/Qma3LQGESYRzatrYVmU6QPSnNjzx9Cjn3kmyB5oU2Vrsd4"
+				"bzz-raw://48649b657a31371cc69f9e33b70bd20881bf0aa90dcf704b19695c88859c44af",
+				"dweb:/ipfs/QmX9vCPBhvxFXHMQGGCaH67EfcdMXTBCv6jtRg8wU1rpES"
 			]
 		}
 	},
