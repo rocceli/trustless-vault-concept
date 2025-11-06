@@ -1,6 +1,7 @@
 import React from 'react';
 import { Lock, TrendingUp, Coins, Shield, Zap, Users, ArrowRight, Check } from 'lucide-react';
 import { useTypewriter } from '@/hooks/use-typewritter';
+import AnimatedBackground from '../components/AnimatedBackground';
 
 export default function IndexPage() {
     const text = useTypewriter([
@@ -82,7 +83,8 @@ export default function IndexPage() {
     ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-950 dark:to-gray-900">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-950 dark:to-gray-900 relative">
+      <AnimatedBackground />
       {/* Hero Section */}
       <section className="relative overflow-hidden px-4 py-20 md:py-32">
         <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-pink-500/10 dark:from-indigo-500/5 dark:via-purple-500/5 dark:to-pink-500/5" />
@@ -90,8 +92,8 @@ export default function IndexPage() {
         <div className="relative mx-auto max-w-7xl">
           <div className="text-center">
             <div className="inline-flex items-center gap-2 rounded-full bg-indigo-100 dark:bg-indigo-900/30 px-4 py-2 text-sm font-medium text-indigo-700 dark:text-indigo-300 mb-8">
-              <Zap className="w-4 h-4" />
-              Built on Ethereum
+              <Coins className="w-4 h-4" />
+              Bitcoin-Powered DeFi
             </div>
             
             <h1 className="font-display text-5xl font-bold text-center">
