@@ -3,14 +3,15 @@ import { useState } from "react";
 import { MenuIcon, XIcon, CoinsIcon } from "lucide-react";
 import { motion } from "framer-motion";
 import { ThemeToggle } from "./ui/toggletheme";
-import { WalletButton } from "./walletconnectbtn";
+import { WalletButton } from "./WalletConnectBtn";
 
 export const Header = () => {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const navItems = [
     { label: "Home", href: "/" },
-    { label: "Vault", href: "/dashboard" },
+    { label: "Vault", href: "/dashboard/vault" },
+    { label: "Liquidity", href: "/dashboard/liquidity" },
   ];
 
   return (
