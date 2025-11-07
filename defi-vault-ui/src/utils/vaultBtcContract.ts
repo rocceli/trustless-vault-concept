@@ -26,7 +26,7 @@ const getVaultPosition = async (address: string): Promise<VaultPosition> => {
 
     return {
         vaultId: result.vaultId,
-        stakedAmount: result.stakedAmount,
+        stakedAmount: Number(formatUnits(BigInt(result.stakedAmount), token.decimals)),
         yieldAccrued: result.yieldAccrued,
         lastYieldUpdate: result.lastYieldUpdate,
         lockTime: result.lockTime,
@@ -73,9 +73,46 @@ const getYieldRate = async (): Promise<number> => {
     return Number(formatUnits(result, token.decimals));
 };
 
+const getBtcAllowance = async (address: string): Promise<bigint> => {
+
+    const publicClient = getPublicClient(config, { chainId: getChain().id });
+
+    const allowance = await publicClient.readContract({
+        address: import.meta.env.VITE_BTC_CONTRACT as Address as Address,
+        abi: abi.vaultSwapLiquidPool,
+        functionName: 'allowance',
+        args: [token.address, address],
+    });
+
+    return allowance as bigint;
+};
+
 // -----------------------------------------------------------------------------
 // ⚙️ WRITE FUNCTIONS (require wallet)
 // -----------------------------------------------------------------------------
+
+const approveBitCoin = async (amount: number): Promise<TransactionReceipt> => {
+    const walletClient = await getWalletClient(config);
+    if (!walletClient) throw new Error("Wallet not connected");
+
+    if (walletClient.chain.id !== getChain().id) {
+        await switchChain(config, { chainId: getChain().id });
+    }
+
+    const amountInWei = parseUnits(amount.toString(), token.decimals);
+
+    const hash = await walletClient.writeContract({
+        address: import.meta.env.VITE_BTC_CONTRACT as Address,
+        abi: abi.vaultSwapLiquidPool,
+        functionName: 'approve',
+        args: [token.address, amountInWei],
+    });
+
+    const publicClient = getPublicClient(config, { chainId: getChain().id });
+    const receipt = await publicClient.waitForTransactionReceipt({ hash });
+
+    return receipt;
+};
 
 const claimYield = async (): Promise<TransactionReceipt> => {
     const walletClient = await getWalletClient(config);
@@ -151,5 +188,7 @@ export const vaultBitCoinHelper = {
     depositBTC,
     withdrawBTC,
     getSecondsPerYear,
-    getYieldRate
+    getYieldRate,
+    getBtcAllowance,
+    approveBitCoin
 }

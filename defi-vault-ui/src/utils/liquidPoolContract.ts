@@ -66,6 +66,20 @@ const getShareValue = async (shares: number): Promise<string> => {
     return formatUnits(value, pool.stableDecimals);
 };
 
+const getStableCoinAllowance = async (address: string): Promise<bigint> => {
+
+    const publicClient = getPublicClient(config, { chainId: getChain().id });
+
+    const allowance = await publicClient.readContract({
+        address: import.meta.env.VITE_STABLE_COIN_CONTRACT as Address as Address,
+        abi: abi.vaultSwapLiquidPool,
+        functionName: 'allowance',
+        args: [pool.address, address],
+    });
+
+    return allowance as bigint;
+};
+
 // -----------------------------------------------------------------------------
 // ⚙️ WRITE FUNCTIONS (require wallet)
 // -----------------------------------------------------------------------------
@@ -85,6 +99,29 @@ const deposit = async (amount: number): Promise<TransactionReceipt> => {
         abi: abi.vaultSwapLiquidPool,
         functionName: "deposit",
         args: [amountInWei],
+    });
+
+    const publicClient = getPublicClient(config, { chainId: getChain().id });
+    const receipt = await publicClient.waitForTransactionReceipt({ hash });
+
+    return receipt;
+};
+
+const approveStableCoin = async (amount: number): Promise<TransactionReceipt> => {
+    const walletClient = await getWalletClient(config);
+    if (!walletClient) throw new Error("Wallet not connected");
+
+    if (walletClient.chain.id !== getChain().id) {
+        await switchChain(config, { chainId: getChain().id });
+    }
+
+    const amountInWei = parseUnits(amount.toString(), pool.decimals);
+
+    const hash = await walletClient.writeContract({
+        address: import.meta.env.VITE_STABLE_COIN_CONTRACT as Address,
+        abi: abi.vaultSwapLiquidPool,
+        functionName: 'approve',
+        args: [pool.address, amountInWei],
     });
 
     const publicClient = getPublicClient(config, { chainId: getChain().id });
@@ -118,9 +155,11 @@ const withdraw = async (shares: number): Promise<TransactionReceipt> => {
 
 export const liquidPoolHelper = {
     getBalance,
+    getStableCoinAllowance,
     getTotalDeposits,
     getTotalSupply,
     getShareValue,
     deposit,
     withdraw,
+    approveStableCoin
 }

@@ -124,6 +124,14 @@ const isLoading = loading || refreshing || !isConnected;
 
     setIsDepositing(true);
     try {
+      const allowance = await liquidPoolHelper.getStableCoinAllowance(address as `0x${string}`);
+
+      if (allowance < BigInt(amount)) {
+        // Step 1: Approve first
+        await liquidPoolHelper.approveStableCoin(Number(amount));
+        console.log("Approval successful!");
+      }
+
       await liquidPoolHelper.deposit(Number(amount) );
       toast({
         title: "Deposit submitted",

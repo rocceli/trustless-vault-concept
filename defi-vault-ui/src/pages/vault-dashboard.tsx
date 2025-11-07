@@ -39,8 +39,12 @@ export default function VaultDashboardPage() {
 
   const lifetimeYield = useMemo(() => position?.yieldAccrued ?? 0, [position]);
 
-  const vaultIdDisplay =
-    position?.vaultId !== undefined && position?.vaultId !== null ? position.vaultId.toString() : "-";
+  const vaultIdDisplay = position?.vaultId !== undefined && position?.vaultId !== null
+    ? position.vaultId.toString().length > 10
+      ? `${position.vaultId.toString().slice(0, 4)}...e${position.vaultId.toString().length - 1}`
+      : position.vaultId.toString()
+    : "-";
+
   const lockStatus =
     position?.isActive === undefined ? "-" : position.isActive ? "Active" : "Inactive";
   const lastYieldUpdateDisplay = position?.lastYieldUpdate
@@ -128,6 +132,13 @@ export default function VaultDashboardPage() {
 
     setIsDepositing(true);
     try {
+      const allowance = await vaultBitCoinHelper.getBtcAllowance(address as `0x${string}`);
+      
+      if (allowance < BigInt(amount)) {
+        console.log("Depositing to vault");
+        await vaultBitCoinHelper.approveBitCoin(Number(amount));
+      }
+      
       await vaultBitCoinHelper.depositBTC(Number(amount) );
       toast({ title: "Deposit submitted", description: "Your BTC is being committed to the vault." });
       await loadVaultData(false);
