@@ -1,6 +1,5 @@
-
 import abi from '@/abi.json';
-import { getPublicClient , getWalletClient, switchChain } from "@wagmi/core";
+import { getPublicClient, getWalletClient, switchChain } from "@wagmi/core";
 import { formatUnits, parseUnits, type Address, type TransactionReceipt } from "viem";
 import { config } from "@/lib/wagmi";
 import { getChain, type VaultPosition } from './types';
@@ -15,8 +14,6 @@ const token = {
 // -----------------------------------------------------------------------------
 
 const getVaultPosition = async (address: string): Promise<VaultPosition> => {
-    
-
     const publicClient = getPublicClient(config, { chainId: getChain().id });
 
     const result = await publicClient.readContract({
@@ -26,19 +23,18 @@ const getVaultPosition = async (address: string): Promise<VaultPosition> => {
         args: [address],
     }) as VaultPosition;
 
+
     return {
         vaultId: result.vaultId,
-        stakedAmount: BigInt(formatUnits(result.stakedAmount, token.decimals)),
-        yieldAccrued: BigInt(formatUnits(result.yieldAccrued, token.decimals)),
+        stakedAmount: result.stakedAmount,
+        yieldAccrued: result.yieldAccrued,
         lastYieldUpdate: result.lastYieldUpdate,
         lockTime: result.lockTime,
         isActive: result.isActive,
-    };
+    }
 };
 
 const getPendingYield = async (address: string): Promise<number> => {
-    
-
     const publicClient = getPublicClient(config, { chainId: getChain().id });
 
     const pendingYield = await publicClient.readContract({
@@ -81,8 +77,7 @@ const getYieldRate = async (): Promise<number> => {
 // ⚙️ WRITE FUNCTIONS (require wallet)
 // -----------------------------------------------------------------------------
 
-const claimYield = async () : Promise<TransactionReceipt> => {
-
+const claimYield = async (): Promise<TransactionReceipt> => {
     const walletClient = await getWalletClient(config);
     if (!walletClient) throw new Error("Wallet not connected");
 
@@ -104,7 +99,6 @@ const claimYield = async () : Promise<TransactionReceipt> => {
 };
 
 const depositBTC = async (amount: number): Promise<TransactionReceipt> => {
-
     const walletClient = await getWalletClient(config);
     if (!walletClient) throw new Error("Wallet not connected");
 
@@ -127,8 +121,7 @@ const depositBTC = async (amount: number): Promise<TransactionReceipt> => {
     return receipt;
 };
 
-const withdrawBTC= async(amount: number): Promise<TransactionReceipt> => {
-
+const withdrawBTC = async (amount: number): Promise<TransactionReceipt> => {
     const walletClient = await getWalletClient(config);
     if (!walletClient) throw new Error("Wallet not connected");
 
@@ -137,7 +130,6 @@ const withdrawBTC= async(amount: number): Promise<TransactionReceipt> => {
     }
 
     const amountInWei = parseUnits(amount.toString(), token.decimals);
-
 
     const hash = await walletClient.writeContract({
         address: token.address,
@@ -149,12 +141,8 @@ const withdrawBTC= async(amount: number): Promise<TransactionReceipt> => {
     const publicClient = getPublicClient(config, { chainId: getChain().id });
     const receipt = await publicClient.waitForTransactionReceipt({ hash });
 
-
     return receipt;
-    
 }
-
-
 
 export const vaultBitCoinHelper = {
     getVaultPosition,

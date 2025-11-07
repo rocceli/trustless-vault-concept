@@ -1,8 +1,8 @@
 import abi from '@/abi.json'
 import { getChain, type Loan, type LoanDetailsTuple } from './types';
-import { getPublicClient } from '@wagmi/core';
+import { getPublicClient, getWalletClient, switchChain } from '@wagmi/core';
 import { config } from '@/lib/wagmi';
-import { formatUnits, type Address, parseEther } from "viem";
+import { formatUnits, type Address, parseEther, type TransactionReceipt } from "viem";
 
 const token = {
     address: import.meta.env.VITE_SWAPCORE_CONTRACT,
@@ -179,7 +179,89 @@ const getMaxBorrowAmount=async(collateralAmount: string) => {
 // ⚙️ WRITE FUNCTIONS (require wallet)
 // -----------------------------------------------------------------------------
 
+const liquidate = async (loanId: number): Promise<TransactionReceipt> => {
+  const walletClient = await getWalletClient(config);
+  if (!walletClient) throw new Error("Wallet not connected");
 
+  if (walletClient.chain.id !== getChain().id) {
+      await switchChain(config, { chainId: getChain().id });
+  }
+  
+  const hash = await walletClient.writeContract({
+    address: token.address as Address,
+    abi: abi.vaultSwapCore,
+    functionName: "liquidate",
+    args: [BigInt(loanId)],
+  });
+
+  const publicClient = getPublicClient(config, { chainId: getChain().id });
+  const receipt = await publicClient.waitForTransactionReceipt({ hash });
+
+  return receipt;
+};
+
+const borrow = async (collateralAmount: number, amount: number): Promise<TransactionReceipt> => {
+  const walletClient = await getWalletClient(config);
+  if (!walletClient) throw new Error("Wallet not connected");
+
+  if (walletClient.chain.id !== getChain().id) {
+      await switchChain(config, { chainId: getChain().id });
+  }
+  
+  const hash = await walletClient.writeContract({
+    address: token.address as Address,
+    abi: abi.vaultSwapCore,
+    functionName: "borrow",
+    args: [BigInt(collateralAmount), BigInt(amount)],
+  });
+
+  const publicClient = getPublicClient(config, { chainId: getChain().id });
+  const receipt = await publicClient.waitForTransactionReceipt({ hash });
+
+  return receipt;
+};
+
+const repay = async (loanId: number): Promise<TransactionReceipt> => {
+  const walletClient = await getWalletClient(config);
+  if (!walletClient) throw new Error("Wallet not connected");
+
+  if (walletClient.chain.id !== getChain().id) {
+      await switchChain(config, { chainId: getChain().id });
+  }
+  
+  const hash = await walletClient.writeContract({
+    address: token.address as Address,
+    abi: abi.vaultSwapCore,
+    functionName: "repay",
+    args: [ BigInt(loanId)],
+  });
+
+  const publicClient = getPublicClient(config, { chainId: getChain().id });
+  const receipt = await publicClient.waitForTransactionReceipt({ hash });
+
+  return receipt;
+};
+
+const addCollateral = async (loanId: number, amount: number): Promise<TransactionReceipt> => {
+  const walletClient = await getWalletClient(config);
+  if (!walletClient) throw new Error("Wallet not connected");
+
+  if (walletClient.chain.id !== getChain().id) {
+      await switchChain(config, { chainId: getChain().id });
+  }
+
+  const hash = await walletClient.writeContract({
+    address: token.address as Address,
+    abi: abi.vaultSwapCore,
+    functionName: "addCollateral",
+    args: [BigInt(loanId), BigInt(amount)],
+  });
+
+  const publicClient = getPublicClient(config, { chainId: getChain().id });
+  const receipt = await publicClient.waitForTransactionReceipt({ hash });
+
+  return receipt;
+};
 
 
 export const swapCoreHelper = {
@@ -192,4 +274,8 @@ export const swapCoreHelper = {
     getHealthFactor,
     calculateInterest,
     getMaxBorrowAmount,
+    liquidate,
+    borrow,
+    addCollateral,
+    repay
 }

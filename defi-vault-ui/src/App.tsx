@@ -6,7 +6,7 @@ import { BrowserRouter } from "react-router-dom";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { createWeb3Modal } from "@web3modal/wagmi/react";
 import { config } from "./lib/wagmi";
-import { Header } from "./components/header";
+import { Header } from "./components/Header";
 import { Router } from "./router/router";
 // import { Router } from "./routes/router";
 

@@ -3,7 +3,10 @@ import { useRoutes } from "react-router-dom";
 
 // Lazy-loaded pages
 const Index = lazy(() => import("@/pages/index"));
-// const NotFound = lazy(() => import("@/pages/NotFound"));
+const Dashboard = lazy(() => import("@/pages/dashboard"));
+const VaultDashboard = lazy(() => import("@/pages/vault-dashboard"));
+const LiquidityDashboard = lazy(() => import("@/pages/liquidity-dashboard"));
+const NotFound = lazy(() => import("@/pages/notfound"));
 
 // Full-page Tailwind fallback
 function FullPageFallback() {
@@ -32,9 +35,11 @@ function FullPageFallback() {
 
 export function Router() {
   const element = useRoutes([
-    // { index: true, element: <CryptoExchangeHomepage /> },
-    // { path: "*", element: <NotFound /> },
-    { index: true, element: <Index />}
+    { path: "dashboard", element: <Dashboard /> },
+    { path: "dashboard/vault", element: <VaultDashboard /> },
+    { path: "dashboard/liquidity", element: <LiquidityDashboard /> },
+    { index: true, element: <Index />},
+    { path: "*", element: <NotFound /> },
   ]);
 
   // Wrap the routes in Suspense so lazy pages show a fallback

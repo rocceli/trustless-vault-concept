@@ -20,8 +20,8 @@ const getBalance = async( address: string ): Promise<number> =>{
       abi: abi.mockBtc,
       functionName: "balanceOf",
       args: [address],
-    }as const) as bigint;
-
+    }) as bigint;
+    
     return Number(formatUnits(balance, token.decimals));
 }
 
