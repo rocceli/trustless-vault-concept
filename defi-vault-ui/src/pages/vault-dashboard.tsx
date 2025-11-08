@@ -37,8 +37,6 @@ export default function VaultDashboardPage() {
 
   const stakedAmount = useMemo(() => position?.stakedAmount ?? 0, [position]);
 
-  const lifetimeYield = useMemo(() => position?.yieldAccrued ?? 0, [position]);
-
   const vaultIdDisplay = position?.vaultId !== undefined && position?.vaultId !== null
     ? position.vaultId.toString().length > 10
       ? `${position.vaultId.toString().slice(0, 4)}...e${position.vaultId.toString().length - 1}`
@@ -222,11 +220,6 @@ export default function VaultDashboardPage() {
 
   const stats = [
     {
-      label: "Vault BTC Balance",
-      value: isLoading ? <Skeleton className="h-8 w-32" /> : `${fNumber(stakedAmount)} BTC`,
-      helper: "Total BTC currently committed to the vault.",
-    },
-    {
       label: "Wallet BTC",
       value: isLoading ? <Skeleton className="h-8 w-28" /> : `${fNumber(btcBalance)} BTC`,
       helper: "Wallet balance available to commit.",
@@ -240,12 +233,7 @@ export default function VaultDashboardPage() {
       label: "Pending Yield",
       value: isLoading ? <Skeleton className="h-8 w-24" /> : `${fNumber(pendingYield)} BTC`,
       helper: "Unclaimed rewards ready to harvest.",
-    },
-    {
-      label: "Lifetime Yield",
-      value: isLoading ? <Skeleton className="h-8 w-24" /> : `${fNumber(lifetimeYield)} BTC`,
-      helper: "Aggregate rewards that have accrued over time.",
-    },
+    }
   ];
 
   return (
@@ -260,12 +248,17 @@ export default function VaultDashboardPage() {
         )
       }
     >
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 auto-rows-fr">
         {stats.map((stat) => (
-          <Card key={stat.label} className="border-none bg-white/70 shadow-sm backdrop-blur dark:bg-gray-900/60">
+          <Card
+            key={stat.label}
+            className="border-none bg-white/70 shadow-sm backdrop-blur dark:bg-gray-900/60 overflow-hidden"
+          >
+
             <CardHeader className="pb-2">
               <CardDescription>{stat.label}</CardDescription>
-              <CardTitle className="text-3xl font-semibold">{stat.value}</CardTitle>
+                <CardTitle className="text-3xl font-semibold break-words">
+                {stat.value}</CardTitle>
             </CardHeader>
             <CardContent className="pt-0 text-sm text-gray-500 dark:text-gray-400">
               {stat.helper}
@@ -298,14 +291,15 @@ export default function VaultDashboardPage() {
                     onChange={(event) => setDepositAmount(fProcessInput(event.target.value))}
                     placeholder="0.0"
                     inputMode="decimal"
-                    max={fNumber(btcBalance)}
+                    min={0}
+                    
                   />
                   <p className="text-xs text-gray-500 dark:text-gray-400">
                     Available: {fNumber(btcBalance)} BTC
                   </p>
                 </div>
                 <div className="flex items-center justify-between gap-3">
-                  <Button type="submit" className="flex-1" disabled={isDepositing}>
+                  <Button type="submit" className="flex-1" disabled={isDepositing || ( depositAmount?? 0 )> ( btcBalance ?? 0 )} >
                     {isDepositing ? "Submitting..." : "Commit to Vault"}
                   </Button>
                   <Button type="button" variant="ghost" onClick={() => loadVaultData(false)} disabled={refreshing}>
@@ -340,12 +334,13 @@ export default function VaultDashboardPage() {
                     onChange={(event) => setWithdrawAmount(fProcessInput(event.target.value))}
                     placeholder="0.0"
                     inputMode="decimal"
+                    min={0}
                   />
                   <p className="text-xs text-gray-500 dark:text-gray-400">
                     Staked: {fNumber(stakedAmount)} BTC
                   </p>
                 </div>
-                <Button type="submit" disabled={isWithdrawing} className="w-full">
+                <Button type="submit" disabled={isWithdrawing || (withdrawAmount ?? 0) > stakedAmount} className="w-full">
                   {isWithdrawing ? "Processing..." : "Withdraw from Vault"}
                 </Button>
               </form>

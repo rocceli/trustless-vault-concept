@@ -228,7 +228,7 @@ const isLoading = loading || refreshing || !isConnected;
     },
     {
       label: "Pool TVL",
-      value: isLoading ? <Skeleton className="h-8 w-20" /> : `${fNumber(totalDeposits)} USD`,
+      value: isLoading ? <Skeleton className="h-8 w-20" /> : `${fCurrency(totalDeposits)}`,
       helper: "Total value currently provided to the pool.",
     },
     {
@@ -299,7 +299,7 @@ const isLoading = loading || refreshing || !isConnected;
                   </p>
                 </div>
                 <div className="flex items-center justify-between gap-3">
-                  <Button type="submit" className="flex-1" disabled={isDepositing}>
+                  <Button type="submit" className="flex-1" disabled={isDepositing ||(depositAmount ?? 0) > ( stableBalance ?? 0)}>
                     {isDepositing ? "Submitting..." : "Deposit Liquidity"}
                   </Button>
                   <Button type="button" variant="ghost" onClick={() => loadPoolData(false)} disabled={refreshing}>
@@ -339,7 +339,7 @@ const isLoading = loading || refreshing || !isConnected;
                     Owned shares: {fNumber(lpBalance)} vLP
                   </p>
                 </div>
-                <Button type="submit" className="w-full" disabled={isWithdrawing}>
+                <Button type="submit" className="w-full" disabled={isWithdrawing || (withdrawShares ?? 0) > ( lpBalance ?? 0 )}>
                   {isWithdrawing ? "Processing..." : "Withdraw Liquidity"}
                 </Button>
               </form>

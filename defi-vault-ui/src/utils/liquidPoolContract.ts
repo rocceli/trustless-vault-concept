@@ -6,7 +6,7 @@ import { getChain } from './types';
 
 const pool = {
     address: import.meta.env.VITE_LIQUID_POOL_CONTRACT,
-    decimals: 18, // LP token decimals
+    decimals: 6, // LP token decimals
     stableDecimals: 6, // Stablecoin decimals (USDC)
 }
 
@@ -48,7 +48,7 @@ const getTotalSupply = async (): Promise<string> => {
         functionName: "totalSupply",
     }) as bigint;
 
-    return formatUnits(supply, pool.decimals);
+    return formatUnits(supply, pool.stableDecimals);
 };
 
 const getShareValue = async (shares: number): Promise<string> => {

@@ -64,12 +64,18 @@ contract VaultSwapLiquidityPool is ERC20, ReentrancyGuard, Ownable {
         
         _burn(msg.sender, shares);
         totalDeposits -= amount;
+
+
+        require(
+            vaultSwap.releaseToPool(amount),
+            "Withdraw from core failed"
+        );
         
         require(
             stablecoin.transferFrom(address(vaultSwap), address(this), amount),
             "Withdraw from core failed"
         );
-        
+            
         require(
             stablecoin.transfer(msg.sender, amount),
             "Transfer failed"

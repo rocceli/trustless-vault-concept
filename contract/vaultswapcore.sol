@@ -23,6 +23,7 @@ contract VaultSwapCore is ReentrancyGuard, Ownable, Pausable {
     // State variables
     IERC20 public vaultBTC;
     IERC20 public stablecoin;
+    address public liquidPool;
     AggregatorV3Interface public priceFeed;
     
     uint256 public constant COLLATERAL_RATIO = 150; // 150% = 1.5x
@@ -77,6 +78,12 @@ contract VaultSwapCore is ReentrancyGuard, Ownable, Pausable {
         priceFeed = AggregatorV3Interface(_chainlinkPriceFeed); 
     }
 
+    function setLiquidPool(address _liquidPool) external onlyOwner {
+        require(_liquidPool != address(0), "Invalid address");
+        require(liquidPool == address(0), "Already set"); // Can only set once
+        liquidPool = _liquidPool;
+    }
+
     function getLatestPrice() public view returns (uint256) {
         (, int256 price, , ,) = priceFeed.latestRoundData();
         require(price > 0, "Price feed returned non-positive value");
@@ -86,6 +93,16 @@ contract VaultSwapCore is ReentrancyGuard, Ownable, Pausable {
     // ============================================
     // Core Functions
     // ============================================
+    
+    function releaseToPool(uint256 amount) external nonReentrant returns (bool) {
+        require(msg.sender == liquidPool, "Only liquid pool");
+        
+        uint256 availableLiquidity = stablecoin.balanceOf(address(this));
+        require(availableLiquidity >= amount, "Insufficient liquidity - funds are lent out");
+        
+        require(stablecoin.transfer(liquidPool, amount), "Transfer failed");
+        return true;
+    }
     
     function borrow(
         uint256 collateralAmount,
