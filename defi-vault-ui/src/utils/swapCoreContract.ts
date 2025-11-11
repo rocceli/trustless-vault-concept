@@ -2,7 +2,8 @@ import abi from '@/abi.json'
 import { getChain, type Loan, type LoanDetailsTuple } from './types';
 import { getPublicClient, getWalletClient, switchChain } from '@wagmi/core';
 import { config } from '@/lib/wagmi';
-import { formatUnits, type Address, parseEther, type TransactionReceipt } from "viem";
+import { formatUnits, type Address, parseEther, type TransactionReceipt, parseUnits } from "viem";
+import { fPercent } from '@/lib/utils';
 
 const token = {
     address: import.meta.env.VITE_SWAPCORE_CONTRACT,
@@ -104,15 +105,15 @@ const getBTCPrice = async() => {
 
 const getUserLoans = async(userAddress: Address) => {
 
-    const publicClient = getPublicClient(config, { chainId: getChain().id });
-    const loanIds = await publicClient.readContract({
-        address: token.address,
-        abi: abi.vaultSwapCore,
-        functionName: 'getUserLoans',
-        args: [userAddress]
-    })  as readonly bigint[];
+  const publicClient = getPublicClient(config, { chainId: getChain().id });
+  const loanIds = await publicClient.readContract({
+      address: token.address,
+      abi: abi.vaultSwapCore,
+      functionName: 'getUserLoans',
+      args: [userAddress]
+  })  as readonly bigint[];
 
-    return loanIds.map(id => Number(id));
+  return loanIds.map(id => Number(id));
 }
 
 const getLoanDetails = async (loanId: number): Promise<Loan> => {
@@ -129,8 +130,10 @@ const getLoanDetails = async (loanId: number): Promise<Loan> => {
         loanId: BigInt(loanId),
         borrower: details[0],
         collateralAmount: formatUnits(details[1], 18),
-        borrowedAmount: details[2],
-        interestRate: details[3],
+        borrowedAmount: formatUnits(details[2], 6),
+        interestRate: fPercent(Number(details[3]) / 100),
+        healthFactor: formatUnits(details[4], 18),
+        accruedInterest: formatUnits(details[5], 6),
         isActive: details[6]
     };
 };
@@ -175,6 +178,35 @@ const getMaxBorrowAmount=async(collateralAmount: string) => {
     return formatUnits(maxBorrow as bigint, 6);
 }
 
+const getVaultBtcAllowance = async (address: string): Promise<bigint> => {
+
+  const publicClient = getPublicClient(config, { chainId: getChain().id });
+
+  const allowance = await publicClient.readContract({
+    address: import.meta.env.VITE_BTC_CONTRACT,
+    abi: abi.mockBtc,
+    functionName: "allowance",
+    args: [address, import.meta.env.VITE_VAULT_BTC_CONTRACT],
+  });
+
+
+  return allowance as bigint;
+};
+
+const getStableCoinAllowance = async (address: string): Promise<string> => {
+
+    const publicClient = getPublicClient(config, { chainId: getChain().id });
+
+    const allowance = await publicClient.readContract({
+        address: import.meta.env.VITE_STABLE_COIN_CONTRACT,
+        abi: abi.mockStableCoin,
+        functionName: 'allowance',
+        args: [address, token.address],
+    });
+
+    return formatUnits(allowance as bigint, 6);
+};
+
 // -----------------------------------------------------------------------------
 // ⚙️ WRITE FUNCTIONS (require wallet)
 // -----------------------------------------------------------------------------
@@ -207,12 +239,17 @@ const borrow = async (collateralAmount: number, amount: number): Promise<Transac
   if (walletClient.chain.id !== getChain().id) {
       await switchChain(config, { chainId: getChain().id });
   }
+
+  const collateralA = parseUnits(collateralAmount.toString(), 18);
+  const borrowA = parseUnits(amount.toString(), 6);
+
+  console.log("borrowing USDC:", amount);
   
   const hash = await walletClient.writeContract({
     address: token.address as Address,
     abi: abi.vaultSwapCore,
     functionName: "borrow",
-    args: [BigInt(collateralAmount), BigInt(amount)],
+    args: [BigInt(collateralA), BigInt(borrowA)],
   });
 
   const publicClient = getPublicClient(config, { chainId: getChain().id });
@@ -263,6 +300,57 @@ const addCollateral = async (loanId: number, amount: number): Promise<Transactio
   return receipt;
 };
 
+const approveVaultBitCoin = async (amount: number): Promise<TransactionReceipt> => {
+    const walletClient = await getWalletClient(config);
+    if (!walletClient) throw new Error("Wallet not connected");
+
+    if (walletClient.chain.id !== getChain().id) {
+        await switchChain(config, { chainId: getChain().id });
+    }
+
+    const amountInWei = parseUnits(amount.toString(), 18);
+
+    const hash = await walletClient.writeContract({
+      address: import.meta.env.VITE_VAULT_BTC_CONTRACT,
+      abi: abi.vaultSwapLiquidPool,
+      functionName: 'approve',
+      args: [token.address, amountInWei],
+  });
+
+
+    const publicClient = getPublicClient(config, { chainId: getChain().id });
+    const receipt = await publicClient.waitForTransactionReceipt({ hash });
+
+    return receipt;
+};
+
+const approveStableCoin = async (amount: number): Promise<TransactionReceipt> => {
+    console.log("Approving stable");
+    const walletClient = await getWalletClient(config);
+    if (!walletClient) throw new Error("Wallet not connected");
+
+    if (walletClient.chain.id !== getChain().id) {
+        await switchChain(config, { chainId: getChain().id });
+    }
+
+    const amountInWei = parseUnits(amount.toString(), 6);
+
+
+
+    const hash = await  walletClient.writeContract({
+        address: import.meta.env.VITE_STABLE_COIN_CONTRACT as Address,
+        abi: abi.mockStableCoin,
+        functionName: 'approve',
+        args: [token.address, amountInWei],
+    });
+
+
+    const publicClient = getPublicClient(config, { chainId: getChain().id });
+    const receipt = await publicClient.waitForTransactionReceipt({ hash });
+
+    return receipt;
+};
+
 
 export const swapCoreHelper = {
 
@@ -272,10 +360,14 @@ export const swapCoreHelper = {
     getUserLoans,
     getLoanDetails,
     getHealthFactor,
+    getVaultBtcAllowance,
+    getStableCoinAllowance,
     calculateInterest,
     getMaxBorrowAmount,
     liquidate,
     borrow,
     addCollateral,
-    repay
+    repay,
+    approveVaultBitCoin,
+    approveStableCoin
 }

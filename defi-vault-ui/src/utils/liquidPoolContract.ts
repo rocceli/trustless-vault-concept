@@ -71,10 +71,10 @@ const getStableCoinAllowance = async (address: string): Promise<bigint> => {
     const publicClient = getPublicClient(config, { chainId: getChain().id });
 
     const allowance = await publicClient.readContract({
-        address: import.meta.env.VITE_STABLE_COIN_CONTRACT as Address as Address,
-        abi: abi.vaultSwapLiquidPool,
+        address: import.meta.env.VITE_STABLE_COIN_CONTRACT as Address,
+        abi: abi.mockStableCoin,
         functionName: 'allowance',
-        args: [pool.address, address],
+        args: [address, pool.address],
     });
 
     return allowance as bigint;
@@ -84,7 +84,7 @@ const getStableCoinAllowance = async (address: string): Promise<bigint> => {
 // ⚙️ WRITE FUNCTIONS (require wallet)
 // -----------------------------------------------------------------------------
 
-const deposit = async (amount: number): Promise<TransactionReceipt> => {
+const deposit = async (amount: bigint): Promise<TransactionReceipt> => {
     const walletClient = await getWalletClient(config);
     if (!walletClient) throw new Error("Wallet not connected");
 
@@ -92,13 +92,12 @@ const deposit = async (amount: number): Promise<TransactionReceipt> => {
         await switchChain(config, { chainId: getChain().id });
     }
 
-    const amountInWei = parseUnits(amount.toString(), pool.stableDecimals);
 
     const hash = await walletClient.writeContract({
         address: pool.address as Address,
         abi: abi.vaultSwapLiquidPool,
         functionName: "deposit",
-        args: [amountInWei],
+        args: [amount],
     });
 
     const publicClient = getPublicClient(config, { chainId: getChain().id });
@@ -107,7 +106,8 @@ const deposit = async (amount: number): Promise<TransactionReceipt> => {
     return receipt;
 };
 
-const approveStableCoin = async (amount: number): Promise<TransactionReceipt> => {
+const approveStableCoin = async (amount: bigint): Promise<TransactionReceipt> => {
+    console.log("Approving stable");
     const walletClient = await getWalletClient(config);
     if (!walletClient) throw new Error("Wallet not connected");
 
@@ -115,14 +115,16 @@ const approveStableCoin = async (amount: number): Promise<TransactionReceipt> =>
         await switchChain(config, { chainId: getChain().id });
     }
 
-    const amountInWei = parseUnits(amount.toString(), pool.decimals);
 
-    const hash = await walletClient.writeContract({
+
+
+    const hash = await  walletClient.writeContract({
         address: import.meta.env.VITE_STABLE_COIN_CONTRACT as Address,
-        abi: abi.vaultSwapLiquidPool,
+        abi: abi.mockStableCoin,
         functionName: 'approve',
-        args: [pool.address, amountInWei],
+        args: [pool.address, amount],
     });
+
 
     const publicClient = getPublicClient(config, { chainId: getChain().id });
     const receipt = await publicClient.waitForTransactionReceipt({ hash });

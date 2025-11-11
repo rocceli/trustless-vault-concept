@@ -16,11 +16,17 @@ type Options = Intl.NumberFormatOptions | undefined;
 
 const DEFAULT_LOCALE = { code: 'en-US', currency: 'USD' };
 
-export function fProcessInput(inputValue: InputNumberValue): number {
-  const num = Number(inputValue);
-  if (inputValue == null || Number.isNaN(num)) return 0;
-  return num;
+export function fProcessInput(inputValue: string | number | null | undefined): number {
+  if (inputValue === null || inputValue === undefined) return 0;
+
+  const str = String(inputValue);
+  if ((str.match(/\./g) || []).length > 1) return 0;
+
+  if (str === ".") return 0;
+  const num = Number(str);
+  return Number.isFinite(num) ? num : 0;
 }
+
 
 // ----------------------------------------------------------------------
 

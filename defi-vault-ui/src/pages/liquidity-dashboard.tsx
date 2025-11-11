@@ -9,6 +9,7 @@ import { bitCoinHelper } from "@/utils/btcContract";
 import { liquidPoolHelper } from "@/utils/liquidPoolContract";
 import { stableCoinHelper } from "@/utils/stableCoinContract";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { parseUnits } from "viem";
 import { useAccount } from "wagmi";
 
 const mintEnabled = import.meta.env.VITE_MINT_FLAG === "true";
@@ -124,15 +125,18 @@ const isLoading = loading || refreshing || !isConnected;
 
     setIsDepositing(true);
     try {
+      
       const allowance = await liquidPoolHelper.getStableCoinAllowance(address as `0x${string}`);
+      const cleanedAmount = parseUnits(amount.replace(/,/g, ""), 6);
+      console.log(cleanedAmount);
 
-      if (allowance < BigInt(amount)) {
+      if (allowance < BigInt(cleanedAmount)) {
         // Step 1: Approve first
-        await liquidPoolHelper.approveStableCoin(Number(amount));
-        console.log("Approval successful!");
+
+        await liquidPoolHelper.approveStableCoin(cleanedAmount);
       }
 
-      await liquidPoolHelper.deposit(Number(amount) );
+      await liquidPoolHelper.deposit(cleanedAmount) ;
       toast({
         title: "Deposit submitted",
         description: "Liquidity provision transaction submitted.",
