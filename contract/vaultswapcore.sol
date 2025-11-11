@@ -5,7 +5,8 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
-import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol"; 
+import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+import { VaultBTC } from "./vaultBTC.sol";
 
 contract VaultSwapCore is ReentrancyGuard, Ownable, Pausable {
     
@@ -20,8 +21,9 @@ contract VaultSwapCore is ReentrancyGuard, Ownable, Pausable {
         bool isActive;
     }
     
-    // State variables
-    IERC20 public vaultBTC;
+    VaultBTC public vaultBTC;
+
+
     IERC20 public stablecoin;
     address public liquidPool;
     AggregatorV3Interface public priceFeed;
@@ -73,7 +75,7 @@ contract VaultSwapCore is ReentrancyGuard, Ownable, Pausable {
         require(_stablecoin != address(0), "Invalid stablecoin");
         require(_chainlinkPriceFeed != address(0), "Invalid oracle");
         
-        vaultBTC = IERC20(_vaultBTC);
+        vaultBTC = VaultBTC(_vaultBTC);
         stablecoin = IERC20(_stablecoin);
         priceFeed = AggregatorV3Interface(_chainlinkPriceFeed); 
     }
@@ -110,12 +112,13 @@ contract VaultSwapCore is ReentrancyGuard, Ownable, Pausable {
     ) external nonReentrant whenNotPaused returns (uint256) {
         require(collateralAmount > 0, "Collateral must be > 0");
         require(borrowAmount > 0, "Borrow amount must be > 0");
-        
-        // Check if user has enough vaultBTC
-        require(
-            vaultBTC.balanceOf(msg.sender) >= collateralAmount,
-            "Insufficient vaultBTC balance"
-        );
+
+        VaultBTC.VaultPosition memory position = vaultBTC.getVaultPosition(msg.sender);
+        require(position.isActive, "No active vault");
+        require(position.stakedAmount >= collateralAmount, "Insufficient staked BTC");
+
+        // Lock collateral in VaultBTC
+        vaultBTC.lockCollateral(msg.sender, collateralAmount);
         
         uint256 maxBorrow = getMaxBorrowAmount(collateralAmount);
         require(borrowAmount <= maxBorrow, "Insufficient collateral");
@@ -125,11 +128,7 @@ contract VaultSwapCore is ReentrancyGuard, Ownable, Pausable {
             "Insufficient liquidity"
         );
         
-        // Transfer collateral from user
-        require(
-            vaultBTC.transferFrom(msg.sender, address(this), collateralAmount),
-            "Collateral transfer failed"
-        );
+
         
         // Create loan
         loanIdCounter++;
@@ -176,11 +175,8 @@ contract VaultSwapCore is ReentrancyGuard, Ownable, Pausable {
             "Repayment transfer failed"
         );
         
-        // Return collateral to borrower
-        require(
-            vaultBTC.transfer(msg.sender, loan.collateralAmount),
-            "Collateral return failed"
-        );
+        // Unlock collateral back to VaultBTC
+        vaultBTC.unlockCollateral(msg.sender, loan.collateralAmount);
         
         // Update state
         totalBorrowed -= loan.borrowedAmount;
@@ -210,12 +206,8 @@ contract VaultSwapCore is ReentrancyGuard, Ownable, Pausable {
         );
         
         // Transfer collateral to liquidator
-        require(
-            vaultBTC.transfer(msg.sender, collateralToLiquidator),
-            "Collateral transfer failed"
-        );
+        vaultBTC.LiquidateCollateral(loan.borrower, loan.collateralAmount);
         
-        // Update state
         totalBorrowed -= loan.borrowedAmount;
         totalCollateral -= loan.collateralAmount;
         loan.isActive = false;
@@ -228,18 +220,16 @@ contract VaultSwapCore is ReentrancyGuard, Ownable, Pausable {
         require(loan.isActive, "Loan not active");
         require(loan.borrower == msg.sender, "Not loan owner");
         require(amount > 0, "Amount must be > 0");
-        
-        // Transfer additional collateral
-        require(
-            vaultBTC.transferFrom(msg.sender, address(this), amount),
-            "Collateral transfer failed"
-        );
-        
+
+        // Lock additional collateral in VaultBTC
+        vaultBTC.lockCollateral(msg.sender, amount);
+
         loan.collateralAmount += amount;
         totalCollateral += amount;
-        
+
         emit CollateralAdded(loanId, amount);
     }
+
     
     // ============================================
     // View Functions

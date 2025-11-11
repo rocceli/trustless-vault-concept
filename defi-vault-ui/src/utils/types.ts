@@ -15,10 +15,10 @@ export type Loan = {
     loanId: bigint;
     borrower: string;
     collateralAmount: string;
-    borrowedAmount: bigint;
-    interestRate: bigint;
-    healthFactor?: bigint;
-    accruedInterest?: bigint;
+    borrowedAmount: string;
+    interestRate: string;
+    healthFactor?: string;
+    accruedInterest?: string;
     isActive: boolean;
 };
 

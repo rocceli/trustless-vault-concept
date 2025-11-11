@@ -78,8 +78,8 @@ const getBtcAllowance = async (address: string): Promise<bigint> => {
     const publicClient = getPublicClient(config, { chainId: getChain().id });
 
     const allowance = await publicClient.readContract({
-        address: import.meta.env.VITE_BTC_CONTRACT as Address as Address,
-        abi: abi.vaultSwapLiquidPool,
+        address: import.meta.env.VITE_BTC_CONTRACT as Address,
+        abi: abi.mockBtc,
         functionName: 'allowance',
         args: [token.address, address],
     });
@@ -91,7 +91,7 @@ const getBtcAllowance = async (address: string): Promise<bigint> => {
 // ⚙️ WRITE FUNCTIONS (require wallet)
 // -----------------------------------------------------------------------------
 
-const approveBitCoin = async (amount: number): Promise<TransactionReceipt> => {
+const approveBitCoin = async (amount: bigint): Promise<TransactionReceipt> => {
     const walletClient = await getWalletClient(config);
     if (!walletClient) throw new Error("Wallet not connected");
 
@@ -99,13 +99,11 @@ const approveBitCoin = async (amount: number): Promise<TransactionReceipt> => {
         await switchChain(config, { chainId: getChain().id });
     }
 
-    const amountInWei = parseUnits(amount.toString(), token.decimals);
-
     const hash = await walletClient.writeContract({
         address: import.meta.env.VITE_BTC_CONTRACT as Address,
-        abi: abi.vaultSwapLiquidPool,
+        abi: abi.mockBtc,
         functionName: 'approve',
-        args: [token.address, amountInWei],
+        args: [token.address, amount],
     });
 
     const publicClient = getPublicClient(config, { chainId: getChain().id });
@@ -135,7 +133,7 @@ const claimYield = async (): Promise<TransactionReceipt> => {
     return receipt;
 };
 
-const depositBTC = async (amount: number): Promise<TransactionReceipt> => {
+const depositBTC = async (amount: bigint): Promise<TransactionReceipt> => {
     const walletClient = await getWalletClient(config);
     if (!walletClient) throw new Error("Wallet not connected");
 
@@ -143,13 +141,11 @@ const depositBTC = async (amount: number): Promise<TransactionReceipt> => {
         await switchChain(config, { chainId: getChain().id });
     }
 
-    const amountInWei = parseUnits(amount.toString(), token.decimals);
-
     const hash = await walletClient.writeContract({
         address: token.address as Address,
         abi: abi.vaultBtc,
         functionName: "depositBTC",
-        args: [amountInWei],
+        args: [amount],
     });
 
     const publicClient = getPublicClient(config, { chainId: getChain().id });

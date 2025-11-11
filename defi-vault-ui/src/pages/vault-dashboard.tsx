@@ -6,10 +6,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/use-toast";
 import { bitCoinHelper } from "@/utils/btcContract";
 import { vaultBitCoinHelper } from "@/utils/vaultBtcContract";
-import { safeRead, type VaultPosition } from "@/utils/types";
+import { safeRead, type Loan, type VaultPosition } from "@/utils/types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAccount } from "wagmi";
+import { parseUnits } from "viem";
 import { fNumber, fProcessInput } from "@/lib/utils";
+import { swapCoreHelper } from "@/utils/swapCoreContract";
 
 const mintEnabled = import.meta.env.VITE_MINT_FLAG === "true";
 
@@ -32,6 +34,14 @@ export default function VaultDashboardPage() {
   const [isWithdrawing, setIsWithdrawing] = useState(false);
   const [isClaiming, setIsClaiming] = useState(false);
   const [isMinting, setIsMinting] = useState(false);
+
+  const [ userLoans, setUserLoans ] = useState<Loan []>([]);
+
+  const [ borrowAmount, setBorrowAmount ] = useState(0);
+  const [ collAmount, setCollAmount ] = useState(0);
+
+  const [ _isRepaying, setIsRepaying ] = useState(false);
+  const [ isBorrowing, setIsBorrowing] = useState(false);
 
   const isLoading = loading || refreshing || !isConnected;
 
@@ -71,17 +81,30 @@ export default function VaultDashboardPage() {
     try {
       const [walletBalance, 
         vaultPosition, 
-        pending
+        pending,
+        loans
       ] = (await Promise.all([
         safeRead(()=> bitCoinHelper.getBalance(address)),
         safeRead(()=>vaultBitCoinHelper.getVaultPosition(address)),
         safeRead(()=>vaultBitCoinHelper.getPendingYield(address)),
+        safeRead(() => swapCoreHelper.getUserLoans(address) )
       ])) as [number
         , VaultPosition
         ,number
+        ,number []
         ];
 
       setPosition(vaultPosition);
+
+      const fetchedLoans = [];
+
+      for (let i = 0; i < loans.length; i++) {
+        const loan = await safeRead(() => swapCoreHelper.getLoanDetails(loans[i]));
+        if (loan) fetchedLoans.push(loan);
+      }
+
+      setUserLoans(fetchedLoans);
+
       setBtcBalance(walletBalance);
       setPendingYield(pending);
       
@@ -131,13 +154,14 @@ export default function VaultDashboardPage() {
     setIsDepositing(true);
     try {
       const allowance = await vaultBitCoinHelper.getBtcAllowance(address as `0x${string}`);
-      
-      if (allowance < BigInt(amount)) {
-        console.log("Depositing to vault");
-        await vaultBitCoinHelper.approveBitCoin(Number(amount));
+
+      const cleanedAmount = parseUnits(amount.replace(/,/g, ""), 18);
+
+      if (allowance < BigInt(cleanedAmount)) {
+        await vaultBitCoinHelper.approveBitCoin(cleanedAmount);
       }
       
-      await vaultBitCoinHelper.depositBTC(Number(amount) );
+      await vaultBitCoinHelper.depositBTC(cleanedAmount );
       toast({ title: "Deposit submitted", description: "Your BTC is being committed to the vault." });
       await loadVaultData(false);
       setDepositAmount(0);
@@ -157,6 +181,7 @@ export default function VaultDashboardPage() {
     if (!requireConnection()) return;
 
     const amount = fNumber(withdrawAmount);
+
     if (Number(amount)  <= 0) {
       toast({ title: "Enter amount", description: "Amount must be greater than zero." });
       return;
@@ -164,7 +189,9 @@ export default function VaultDashboardPage() {
 
     setIsWithdrawing(true);
     try {
+      
       await vaultBitCoinHelper.withdrawBTC(Number(amount) );
+      
       toast({ title: "Withdraw submitted", description: "Vault withdrawal initiated." });
       await loadVaultData(false);
       setWithdrawAmount(0);
@@ -176,6 +203,78 @@ export default function VaultDashboardPage() {
       });
     } finally {
       setIsWithdrawing(false);
+    }
+  };
+
+  const handleBorrow = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!requireConnection()) return;
+
+    const borrowAmt = fNumber(borrowAmount);
+    const collateralAmt = fNumber(collAmount);
+
+    if (borrowAmount <= 0 || collAmount <= 0 || collAmount > Number(position?.stakedAmount)) {
+      toast({
+        title: "Invalid input",
+        description: "Borrow amount must be > 0 and collateral <= staked BTC",
+        variant: "destructive",
+      });
+      return;
+    }
+
+
+    setIsBorrowing(true);
+    try {
+
+      await swapCoreHelper.borrow(Number(collateralAmt), Number(borrowAmt));
+      toast({ title: "Borrow submitted", description: "Vault borrowing initiated." });
+
+      await loadVaultData(false);
+      setBorrowAmount(0);
+      setCollAmount(0);
+    } catch (error: unknown) {
+      toast({
+        title: "Borrow failed",
+        description: getErrorMessage(error, "Transaction rejected."),
+        variant: "destructive",
+      });
+    } finally {
+      setIsBorrowing(false);
+    }
+  };
+
+
+  const handleRepay = async ( loan :Loan ) => {
+    if (!requireConnection()) return;
+
+
+    const allowance = await swapCoreHelper.getStableCoinAllowance(address as `0x${string}`);
+    console.log(allowance);
+    if (Number(allowance) < Number(loan.borrowedAmount) + Number(loan.accruedInterest)) {
+      // Step 1: Approve first
+
+      await swapCoreHelper.approveStableCoin(Number(loan.borrowedAmount+ Number(loan.accruedInterest)));
+    }
+
+
+    if (Number(loan.loanId)  <= 0) {
+      toast({ title: "Enter amount", description: "Amount must be greater than zero." });
+      return;
+    }
+
+    setIsRepaying(true);
+    try {
+      await swapCoreHelper.repay(Number(loan.loanId) );
+      toast({ title: "repay submitted", description: "Vault repay initiated." });
+      await loadVaultData(false);
+    } catch (error: unknown) {
+      toast({
+        title: "repay failed",
+        description: getErrorMessage(error, "Transaction rejected."),
+        variant: "destructive",
+      });
+    } finally {
+      setIsRepaying(false);
     }
   };
 
@@ -360,6 +459,96 @@ export default function VaultDashboardPage() {
           </CardContent>
         </Card>
       </section>
+
+      <section className="grid gap-6 lg:grid-cols-2">
+        <Card className="border-none bg-white shadow-sm dark:bg-gray-900">
+          <CardHeader>
+            <CardTitle className="text-xl">Borrow BTC</CardTitle>
+            <CardDescription>
+              Borrow USDC against your vault position as collateral. Maintain health ratio to avoid liquidation.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleBorrow} className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Borrow Amount (USDC)
+                </label>
+                <Input
+                  value={borrowAmount?.toString()}
+                  onChange={(e) => setBorrowAmount(fProcessInput(e.target.value))}
+                  placeholder="0.0"
+                  inputMode="decimal"
+                />
+
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Collateral Amount from Vault (BTC)
+                </label>
+                <Input
+                  value={collAmount?.toString()}
+                  onChange={(e) => setCollAmount(fProcessInput(e.target.value))}
+                  placeholder="0.0"
+                  inputMode="decimal"
+                />
+              </div>
+
+              
+              <Button type="submit" className="w-full" disabled={isBorrowing}>
+                {isBorrowing ? "Processing..." : "Borrow BTC"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </section>
+
+      <section>
+        <Card className="border-none bg-white shadow-sm dark:bg-gray-900">
+          <CardHeader>
+            <CardTitle className="text-lg">Current Loans</CardTitle>
+            <CardDescription>Monitor your open loan positions.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <Skeleton className="h-20 w-full" />
+            ) : userLoans.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="py-2 text-left">Loan ID</th>
+                      <th className="py-2 text-left">Amount</th>
+                      <th className="py-2 text-left">Interest Rate</th>
+                      <th className="py-2 text-left">Accrued Interest</th>
+                      <th className="py-2 text-left">Status</th>
+                      
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {userLoans.map((loan, i) => (
+                      <tr key={i} className="border-b last:border-none">
+                        <td className="py-2">{loan.loanId.toString() ?? i}</td>
+                        <td className="py-2">{loan.borrowedAmount} USDC</td>
+                        <td className="py-2">{loan.interestRate}</td>
+                        <td className="py-2">{loan.accruedInterest} USDC</td>
+                        <td className="py-2">{loan.isActive ? "Active" : "Repaid"}</td>
+                        <td className="py-2">
+                          <Button disabled={_isRepaying || isLoading || !loan.isActive} variant="outline" onClick={()=>handleRepay( loan )}>
+                            {_isRepaying ? "Repaying..." : "Repay Loan"}
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-gray-500 dark:text-gray-400">No active loans</p>
+            )}
+          </CardContent>
+        </Card>
+      </section>
+
+
 
       <section>
         <Card className="border-none bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-sky-500/10 shadow-inner dark:from-indigo-500/20 dark:via-purple-500/20 dark:to-sky-500/20">

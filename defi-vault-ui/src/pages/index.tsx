@@ -6,8 +6,12 @@ import { safeRead } from '@/utils/types';
 import { swapCoreHelper } from '@/utils/swapCoreContract';
 import { liquidPoolHelper } from '@/utils/liquidPoolContract';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useNavigate } from 'react-router-dom';
+import { fCurrency } from '@/lib/utils';
 
 export default function IndexPage() {
+
+  const navigate = useNavigate();
 
   const [ totalLiquidStableCoin, setTotalLiquidStableCoin ] = useState(0);
   const [ rate, setRate ] = useState(0);
@@ -32,8 +36,8 @@ export default function IndexPage() {
 
       setTotalLiquidStableCoin(stables);
       setProtocolInfo({
-        borrowed: Number(stats.borrowed),
-        collateral: Number(stats.collateral),
+        borrowed: Number(stats.totalBorrowed),
+        collateral: Number(stats.totalCollateral),
         totalLoans: Number(stats.totalLoans),
         isPaused: stats.isPaused
       });
@@ -88,11 +92,10 @@ export default function IndexPage() {
     ];
 
     const stats = [
-        { value: (protocolInfo.collateral * rate) ? protocolInfo.collateral * rate : '0', label: "Colllateral Used" },
-        { value: (protocolInfo.borrowed) ? protocolInfo.borrowed : '0', label: "Borrowed" },
-        { value: protocolInfo.totalLoans * rate, label: "Total Loans" },
-        { value: "6%", label: "Average APY" },
-        { value: totalLiquidStableCoin, label: "Liquidity Value" }
+        { value: `${protocolInfo.collateral} BTC` , label: `Collateral Used @${fCurrency(rate)}` },
+        { value: `${protocolInfo.borrowed} USDC` , label: "Borrowed" },
+        { value: protocolInfo.totalLoans, label: "Total Loans" },
+        { value: fCurrency(totalLiquidStableCoin), label: "Liquidity Available" }
     ];
     
     const howItWorks = [
@@ -153,12 +156,12 @@ export default function IndexPage() {
               </p>
               
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <button className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-8 py-4 rounded-lg font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2">
+                <button className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-8 py-4 rounded-lg font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2" onClick={()=> navigate("/dashboard/vault")}>
                   Start Vaulting
                   <ArrowRight className="w-5 h-5" />
                 </button>
                 
-                <button className="bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-700 hover:border-indigo-500 dark:hover:border-indigo-500 text-gray-900 dark:text-white px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-300">
+                <button className="bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-700 hover:border-indigo-500 dark:hover:border-indigo-500 text-gray-900 dark:text-white px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-300" onClick={()=>navigate("/dashboard/liquidity")}>
                   Become a Provider
                 </button>
               </div>
@@ -278,14 +281,11 @@ export default function IndexPage() {
                 </p>
                 
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <button className="bg-white text-indigo-600 hover:bg-gray-100 px-8 py-4 rounded-lg font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2">
+                  <button className="bg-white text-indigo-600 hover:bg-gray-100 px-8 py-4 rounded-lg font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2" onClick={()=> navigate("/dashboard/vault")}>
                     Open Vault
                     <ArrowRight className="w-5 h-5" />
                   </button>
                   
-                  <button className="bg-transparent border-2 border-white text-white hover:bg-white/10 px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-300">
-                    Read Documentation
-                  </button>
                 </div>
               </div>
             </div>

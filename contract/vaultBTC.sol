@@ -5,7 +5,6 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-
 contract VaultBTC is ReentrancyGuard {
     IERC20 public immutable btcToken;
     
@@ -17,14 +16,24 @@ contract VaultBTC is ReentrancyGuard {
         uint256 lockTime;
         bool isActive;
     }
+
+    address public swapCoreContract;
+    mapping(address => uint256) public lockedCollateral;
+
     
     mapping(address => VaultPosition) public vaultPositions;
-    uint256 public constant YIELD_RATE = 500; // 5% APY (500 basis points)
+    uint256 public constant YIELD_RATE = 5; // 0.05% APY (5 basis points)
     uint256 public constant SECONDS_PER_YEAR = 365 days;
     
     event VaultCreated(address indexed user, uint256 vaultId, uint256 amount);
     event YieldAccrued(address indexed user, uint256 amount);
     event BTCWithdrawn(address indexed user, uint256 amount);
+
+    modifier onlySwapCoreContract() {
+        require(msg.sender == swapCoreContract, "Only SwapCoreContract can call");
+        _;
+    }
+
     
     constructor(address _btcToken) {
         btcToken = IERC20(_btcToken);
@@ -97,6 +106,42 @@ contract VaultBTC is ReentrancyGuard {
     function getVaultPosition(address user) external view returns (VaultPosition memory) {
         return vaultPositions[user];
     }
+
+    function setSwapCore(address _swapCore) external {
+        require(swapCoreContract == address(0), "SwapCore already set");
+        swapCoreContract = _swapCore;
+    }
+
+    function lockCollateral(address user, uint256 amount) external {
+        require(msg.sender == swapCoreContract, "Only SwapCore can lock");
+        
+        VaultPosition storage position = vaultPositions[user];
+        require(position.isActive, "No active vault");
+        require(position.stakedAmount >= amount, "Not enough staked BTC");
+        
+        position.stakedAmount -= amount;
+        lockedCollateral[user] += amount;
+    }
+
+    function unlockCollateral(address user, uint256 amount) external {
+        require(msg.sender == swapCoreContract, "Only SwapCore can unlock");
+        require(lockedCollateral[user] >= amount, "Not enough locked BTC");
+        
+        lockedCollateral[user] -= amount;
+        vaultPositions[user].stakedAmount += amount;
+    }
+
+    function LiquidateCollateral(address user, uint256 amount) external onlySwapCoreContract {
+        VaultPosition storage position = vaultPositions[user];
+        require(position.isActive && position.stakedAmount >= amount, "Not enough BTC");
+
+        position.stakedAmount -= amount;
+        if (position.stakedAmount == 0) {
+            position.isActive = false;
+        }
+    }
+
+
     
     function getPendingYield(address user) external view returns (uint256) {
         VaultPosition memory position = vaultPositions[user];
