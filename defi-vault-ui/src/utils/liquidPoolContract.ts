@@ -6,7 +6,7 @@ import { getChain } from './types';
 
 const pool = {
     address: import.meta.env.VITE_LIQUID_POOL_CONTRACT,
-    decimals: 6, // LP token decimals
+    decimals: 18, // LP token decimals
     stableDecimals: 6, // Stablecoin decimals (USDC)
 }
 
@@ -14,6 +14,10 @@ const pool = {
 // 📘 READ FUNCTIONS
 // -----------------------------------------------------------------------------
 
+/**
+ * Get user's LP token balance
+ * @returns Balance formatted with LP token decimals (18)
+ */
 const getBalance = async (address: string): Promise<string> => {
     const publicClient = getPublicClient(config, { chainId: getChain().id });
 
@@ -27,6 +31,10 @@ const getBalance = async (address: string): Promise<string> => {
     return formatUnits(balance, pool.decimals);
 };
 
+/**
+ * Get total deposits in the pool
+ * @returns Total deposits formatted with stablecoin decimals (6)
+ */
 const getTotalDeposits = async (): Promise<string> => {
     const publicClient = getPublicClient(config, { chainId: getChain().id });
 
@@ -36,9 +44,13 @@ const getTotalDeposits = async (): Promise<string> => {
         functionName: "totalDeposits",
     }) as bigint;
 
-    return formatUnits(deposits, pool.stableDecimals);
+    return formatUnits(deposits, pool.stableDecimals); // Total deposits in stablecoin
 };
 
+/**
+ * Get total LP token supply
+ * @returns Total supply formatted with LP token decimals (18)
+ */
 const getTotalSupply = async (): Promise<string> => {
     const publicClient = getPublicClient(config, { chainId: getChain().id });
 
@@ -48,12 +60,18 @@ const getTotalSupply = async (): Promise<string> => {
         functionName: "totalSupply",
     }) as bigint;
 
-    return formatUnits(supply, pool.stableDecimals);
+    return formatUnits(supply, pool.decimals); // LP supply has 18 decimals
 };
 
+/**
+ * Get the stablecoin value of LP shares
+ * @param shares Number of LP tokens (in human-readable format)
+ * @returns Value in stablecoins (formatted with 6 decimals)
+ */
 const getShareValue = async (shares: number): Promise<string> => {
     const publicClient = getPublicClient(config, { chainId: getChain().id });
 
+    // Parse shares with LP token decimals (18)
     const sharesInWei = parseUnits(shares.toString(), pool.decimals);
 
     const value = await publicClient.readContract({
@@ -63,11 +81,14 @@ const getShareValue = async (shares: number): Promise<string> => {
         args: [sharesInWei],
     }) as bigint;
 
+    // Value is returned in stablecoin decimals (6)
     return formatUnits(value, pool.stableDecimals);
 };
 
+/**
+ * Get stablecoin allowance for the pool contract
+ */
 const getStableCoinAllowance = async (address: string): Promise<bigint> => {
-
     const publicClient = getPublicClient(config, { chainId: getChain().id });
 
     const allowance = await publicClient.readContract({
@@ -84,6 +105,10 @@ const getStableCoinAllowance = async (address: string): Promise<bigint> => {
 // ⚙️ WRITE FUNCTIONS (require wallet)
 // -----------------------------------------------------------------------------
 
+/**
+ * Deposit stablecoins to receive LP tokens
+ * @param amount Amount in stablecoin decimals (6) as bigint
+ */
 const deposit = async (amount: bigint): Promise<TransactionReceipt> => {
     const walletClient = await getWalletClient(config);
     if (!walletClient) throw new Error("Wallet not connected");
@@ -92,12 +117,11 @@ const deposit = async (amount: bigint): Promise<TransactionReceipt> => {
         await switchChain(config, { chainId: getChain().id });
     }
 
-
     const hash = await walletClient.writeContract({
         address: pool.address as Address,
         abi: abi.vaultSwapLiquidPool,
         functionName: "deposit",
-        args: [amount],
+        args: [amount], // Amount in stablecoin decimals (6)
     });
 
     const publicClient = getPublicClient(config, { chainId: getChain().id });
@@ -106,8 +130,10 @@ const deposit = async (amount: bigint): Promise<TransactionReceipt> => {
     return receipt;
 };
 
+/**
+ * Approve stablecoin spending for the pool contract
+ */
 const approveStableCoin = async (amount: bigint): Promise<TransactionReceipt> => {
-    console.log("Approving stable");
     const walletClient = await getWalletClient(config);
     if (!walletClient) throw new Error("Wallet not connected");
 
@@ -115,16 +141,12 @@ const approveStableCoin = async (amount: bigint): Promise<TransactionReceipt> =>
         await switchChain(config, { chainId: getChain().id });
     }
 
-
-
-
-    const hash = await  walletClient.writeContract({
+    const hash = await walletClient.writeContract({
         address: import.meta.env.VITE_STABLE_COIN_CONTRACT as Address,
         abi: abi.mockStableCoin,
         functionName: 'approve',
         args: [pool.address, amount],
     });
-
 
     const publicClient = getPublicClient(config, { chainId: getChain().id });
     const receipt = await publicClient.waitForTransactionReceipt({ hash });
@@ -132,6 +154,10 @@ const approveStableCoin = async (amount: bigint): Promise<TransactionReceipt> =>
     return receipt;
 };
 
+/**
+ * Withdraw liquidity by burning LP tokens
+ * @param shares Number of LP tokens to burn (in human-readable format)
+ */
 const withdraw = async (shares: number): Promise<TransactionReceipt> => {
     const walletClient = await getWalletClient(config);
     if (!walletClient) throw new Error("Wallet not connected");
@@ -146,13 +172,11 @@ const withdraw = async (shares: number): Promise<TransactionReceipt> => {
         address: pool.address as Address,
         abi: abi.vaultSwapLiquidPool,
         functionName: "withdraw",
-        args: [sharesInWei],
+        args: [sharesInWei], // Shares in LP token decimals (18)
     });
 
     const publicClient = getPublicClient(config, { chainId: getChain().id });
-    const receipt = await publicClient.waitForTransactionReceipt({ hash });
-
-    return receipt;
+    return await publicClient.waitForTransactionReceipt({ hash });
 };
 
 export const liquidPoolHelper = {

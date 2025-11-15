@@ -1,5 +1,6 @@
+import ProtectedRoute from "@/lib/protected";
 import { lazy, Suspense } from "react";
-import { useRoutes } from "react-router-dom";
+import { Outlet, useRoutes } from "react-router-dom";
 
 // Lazy-loaded pages
 const Index = lazy(() => import("@/pages/index"));
@@ -34,14 +35,30 @@ function FullPageFallback() {
 }
 
 export function Router() {
-  const element = useRoutes([
-    { path: "dashboard", element: <Dashboard /> },
-    { path: "dashboard/vault", element: <VaultDashboard /> },
-    { path: "dashboard/liquidity", element: <LiquidityDashboard /> },
-    { index: true, element: <Index />},
-    { path: "*", element: <NotFound /> },
-  ]);
+  return useRoutes([
+    {
+      element: (
+        <Suspense fallback={<FullPageFallback />}>
+          <Outlet />
+        </Suspense>
+      ),
+      children: [
+        // Public routes
+        { index: true, element: <Index /> },
 
-  // Wrap the routes in Suspense so lazy pages show a fallback
-  return <Suspense fallback={<FullPageFallback />}>{element}</Suspense>;
+        // Protected dashboard section
+        {
+          element: <ProtectedRoute />,
+          children: [
+            { path: "dashboard", element: <Dashboard /> },
+            { path: "dashboard/vault", element: <VaultDashboard /> },
+            { path: "dashboard/liquidity", element: <LiquidityDashboard /> },
+          ],
+        },
+
+        // 404
+        { path: "*", element: <NotFound /> }
+      ],
+    },
+  ]);
 }

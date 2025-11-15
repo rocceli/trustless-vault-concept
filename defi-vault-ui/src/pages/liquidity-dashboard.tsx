@@ -128,7 +128,6 @@ const isLoading = loading || refreshing || !isConnected;
       
       const allowance = await liquidPoolHelper.getStableCoinAllowance(address as `0x${string}`);
       const cleanedAmount = parseUnits(amount.replace(/,/g, ""), 6);
-      console.log(cleanedAmount);
 
       if (allowance < BigInt(cleanedAmount)) {
         // Step 1: Approve first
@@ -221,12 +220,12 @@ const isLoading = loading || refreshing || !isConnected;
 
   const stats = [
     {
-      label: "Your LP Tokens",
-      value: isLoading ? <Skeleton className="h-8 w-24" /> : `${fNumber(lpBalance)} vLP`,
+      label: "Your VsLP Tokens",
+      value: isLoading ? <Skeleton className="h-8 w-24" /> : `${fNumber(lpBalance)} VsLP`,
       helper: "LP tokens currently owned by your wallet.",
     },
     {
-      label: "LP Position Value",
+      label: "VsLP Position Value",
       value: isLoading ? <Skeleton className="h-8 w-28" /> : `${fNumber(lpValue)} USD`,
       helper: "Estimated dollar value of your liquidity position.",
     },
