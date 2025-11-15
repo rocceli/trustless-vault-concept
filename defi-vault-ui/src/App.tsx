@@ -8,7 +8,6 @@ import { createWeb3Modal } from "@web3modal/wagmi/react";
 import { config } from "./lib/wagmi";
 import { Header } from "./components/Header";
 import { Router } from "./router/router";
-// import { Router } from "./routes/router";
 
 const queryClient = new QueryClient();
 
