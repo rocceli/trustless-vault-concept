@@ -52,7 +52,7 @@ VaultSwap enables Bitcoin holders to unlock liquidity from their Babylon trustle
 ---
 
 ## 🏗️ Architecture
-
+![Architecture Diagram](https://raw.githubusercontent.com/rocceli/trustless-vault-concept/main/defi-vault-ui/public/img.png)
 ### System Overview
 
 ```
